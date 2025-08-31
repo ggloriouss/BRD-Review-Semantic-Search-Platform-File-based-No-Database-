@@ -1,0 +1,3 @@
+[submodule "backend/SPFresh"]
+	path = backend/SPFresh
+	url = https://github.com/SPFresh/SPFresh.git
