@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
-use std::sync::Arc;
+// use std::sync::Arc;
 
 /// SpFreshIndex: wrapper (replace append/search with real binding)
 pub struct SpFreshIndex {

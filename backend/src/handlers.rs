@@ -139,7 +139,7 @@ pub async fn search_handler(
 
     // build result preserving neighbors order
     let mut results = Vec::new();
-    for (i, (vid, score)) in neighbors.into_iter().enumerate() {
+    for (_i, (vid, score)) in neighbors.into_iter().enumerate() {
         if let Some(rid) = id_map.get(&vid) {
             // find meta by id
             if let Some(meta) = metas.iter().find(|m| &m.id == rid) {

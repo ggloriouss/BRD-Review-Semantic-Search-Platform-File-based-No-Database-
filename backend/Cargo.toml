@@ -1,26 +1,17 @@
 [package]
-name = "review_semsearch_backend"
+name = "backend"
 version = "0.1.0"
-edition = "2021"
+edition = "2018"
 
 [dependencies]
 axum = { version = "0.7", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-thiserror = "1.0"
-tracing = "0.2"
+tracing = "0.1.40"
 tracing-subscriber = "0.3"
-fastembed = "2.0"choco install cmake -y
-choco install jemalloc -y
-choco install snappy -y
-choco install gflags -y
-choco install pkgconfiglite -y
-choco install swig -y
-choco install boost-msvc -y
-choco install tbb -y
 uuid = { version = "1", features = ["v4"] }
-bytes = "1.4"
 parking_lot = "0.12"
 anyhow = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
+hyper = { version = "0.14", features = ["full"] }
