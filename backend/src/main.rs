@@ -4,6 +4,9 @@ mod routes;
 mod storage;
 mod types;
 
+use tracing_subscriber::prelude::*;
+use axum::{serve};
+// use axum::{serve, Router}; // Add serve, remove hyper::Server
 use handlers::AppState;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -25,12 +28,12 @@ async fn main() -> anyhow::Result<()> {
         jsonl_path: jsonl_path.to_string(),
         map_path: map_path.to_string(),
     };
-    let app_state = axum::extract::State(state);
-    let app = routes::register_routes(app_state);
+
+    let app = routes::register_routes(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
     tracing::info!("listening on {}", addr);
-    axum::Server::bind(&addr).serve(app.into_make_service()).await?;
-
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    serve(listener, app).await?;
     Ok(())
 }
