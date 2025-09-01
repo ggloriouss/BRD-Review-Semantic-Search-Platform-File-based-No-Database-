@@ -1,26 +1,100 @@
-# BRD-Review-Semantic-Search-Platform-File-based-No-Database-
-Goal Build a file‑backed semantic review search that can ingest unlimited user reviews via a Leptos frontend, embed them with fastembed-rs, and perform ANN vector search using an SPFresh/SPTAG index—no external DB. All data lives in files under backend/data/.
+# Semantic Review Search Platform
 
-## 1.) Scope & Objectives
-O1. Insert reviews via frontend → backend API.
+A lightweight, file-based semantic search system for user reviews built with Rust. Leverages Leptos for the frontend, fastembed-rs for embeddings, and SPFresh/SPTAG for vector search - all without external databases.
 
-O2. Generate embeddings locally (no network models).
+## Core Features
 
-O3. Append‑only persistence: reviews.index (vector index) + reviews.jsonl (metadata).
+- **Review Management**: Add reviews via web interface (manual/bulk upload)
+- **Semantic Search**: Find similar reviews using cosine similarity
+- **File-Based Storage**: Durable, append-only storage without databases
+- **Vector Search**: Fast approximate nearest neighbor (ANN) search
+- **Containerized**: Easy deployment with Docker Compose
 
-O4. Top‑K semantic search with cosine similarity.
+## Technology Stack
 
-O5. File‑based durability and crash‑safe (best‑effort) writes.
+- **Backend**: Rust (axum), fastembed-rs, spfresh
+- **Frontend**: Leptos (Rust WASM/SSR)  
+- **Storage**: File-based (vector index + JSONL)
+- **Deploy**: Docker Compose
 
-O6. Dockerized dev run; docker-compose with no databases.
+## Quick Start
 
-## 2.) Solved
-3.1 Insert Flow: InsertReview frontend -> POST /reviews → handlers::insert_review_handler → embed -> SpFreshIndex::append_vector -> append_metadata -> append_vector_map
+1. Prerequisites:
+    - Docker and Docker Compose
+    - Rust toolchain (for development)
 
-3.2 Search Flow: Search frontend -> POST /search → handlers::search_handler → embed query -> SpFreshIndex::search -> read_vector_map -> read_metadata_by_review_ids -> return results
+2. Run with Docker:
+    ```bash
+    docker-compose up --build
+    ```
+    Access at:
+    - Frontend: http://localhost:3000
+    - API: http://localhost:8000
 
-3.3 API via Frontend: frontend code calls /reviews, /reviews/bulk, /search — backend routes wired in routes.rs
+3. Local Development:
+    ```bash
+    # Backend
+    cd backend && cargo run
+    
+    # Frontend 
+    cd frontend && cargo run
+    ```
 
-3.4 Append-only key points: append_metadata and append_vector_map use append-only file writes; locks on index append to avoid race conditions
+## Project Structure
+```
+project-root/
+│
+├── frontend/                  # Leptos (Rust SPA/SSR)
+│   ├── src/
+│   │   ├── api.rs             # API client for backend calls
+│   │   ├── main.rs            # App entry point with routing
+│   │   └── components/        # UI components (InsertReview, Search)
+│   │       ├── mod.rs
+│   │       ├── insert_review.rs
+│   │       └── search.rs
+│   ├── Cargo.toml
+│   └── Dockerfile
+│
+├── backend/                   # Rust (axum) + fastembed-rs + spfresh binding
+│   ├── src/
+│   │   ├── main.rs            # Server entry point
+│   │   ├── handlers.rs        # API handlers (insert, search)
+│   │   ├── routes.rs          # Route definitions
+│   │   ├── storage.rs         # File I/O for index and metadata
+│   │   ├── embedder.rs        # Embedding logic
+│   │   └── types.rs           # Data structures
+│   ├── Cargo.toml
+│   ├── spfresh/               # C++ binding or submodule
+│   ├── data/                  # Append-only data files
+│   │   ├── reviews.index      # SPFresh vector index (binary)
+│   │   └── reviews.jsonl      # Metadata (JSON Lines, 1 review per line)
+│   └── Dockerfile
+│
+├── docker-compose.yml         # Orchestration (backend + frontend)
+├── .gitignore
+├── Prompt.txt                 # Project requirements and tech stack
+├── Instructions.md            # Detailed implementation guide
+└── README.md                  # This file
+```
+## API Endpoints
 
-3.5 User Journey: shown with frontend components and curl-like calls previously
+- `POST /reviews`: Add single review
+- `POST /reviews/bulk`: Bulk import reviews
+- `POST /search`: Search reviews
+
+## Data Storage
+
+- Append-only files in `data/` directory
+- Vector index (.index) maps to metadata (.jsonl)
+- Zero external dependencies
+
+## Contributing
+
+1. Use specified tech stack
+2. Add tests with `cargo test`
+3. Update documentation
+4. Submit PR
+
+## License
+
+MIT
