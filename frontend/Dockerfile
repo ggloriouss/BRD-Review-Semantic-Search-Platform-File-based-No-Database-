@@ -11,9 +11,9 @@ RUN cargo install trunk
 COPY . .
 
 # Build frontend as WASM static files
-RUN trunk build --release
+RUN trunk build --release --public-url /
 
 FROM nginx:alpine AS runtime
 COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 3000
+EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

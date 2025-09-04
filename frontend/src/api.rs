@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
 use gloo_net::http::Request;
 
-const BASE_URL: &str = "http://localhost:8000";
+const BASE_URL: &str = "http://localhost:3000";
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ReviewInput {
