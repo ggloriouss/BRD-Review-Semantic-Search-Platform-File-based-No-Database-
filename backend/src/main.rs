@@ -4,12 +4,12 @@ mod routes;
 mod storage;
 mod types;
 
-use tracing_subscriber::prelude::*;
-use axum::{serve};
-// use axum::{serve, Router}; // Add serve, remove hyper::Server
+use axum::serve;
 use handlers::AppState;
+use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tracing_subscriber::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -17,24 +17,26 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    std::fs::create_dir_all("data")?;
-    let index_path = "data/reviews.index";
-    let jsonl_path = "data/reviews.jsonl";
-    let map_path = "data/vector_map.jsonl";
+    // Configurable paths (Addtional implementation #02)
+    let data_dir = env::var("DATA_DIR").unwrap_or_else(|_| "data".into());
+    std::fs::create_dir_all(&data_dir)?;
+    let index_path = env::var("INDEX_FILE").unwrap_or_else(|_| format!("{}/reviews.index", data_dir));
+    let jsonl_path = env::var("METADATA_FILE").unwrap_or_else(|_| format!("{}/reviews.jsonl", data_dir));
+    let map_path = env::var("MAP_FILE").unwrap_or_else(|_| format!("{}/vector_map.jsonl", data_dir));
 
-    let index = storage::SpFreshIndex::open(index_path)?;
+    let index = storage::SpFreshIndex::open(&index_path)?;
     let state = AppState {
         index: Arc::new(index),
-        jsonl_path: jsonl_path.to_string(),
-        map_path: map_path.to_string(),
+        jsonl_path: jsonl_path.clone(),
+        map_path: map_path.clone(),
     };
 
-    let app = routes::register_routes(state);
+    // Optional integrity check (warning only)
+    if let Err(e) = storage::verify_alignment(&state.index, &state.jsonl_path) {
+        tracing::warn!("Alignment check: {}", e);
+    }
 
-    // Remove the health check code
-    // let backend_url = std::env::var("BACKEND_URL").unwrap_or("http://localhost:8000".to_string());
-    // let resp = reqwest::get(format!("{}/health", backend_url)).await?;
-    // tracing::info!("Health check: {:?}", resp);
+    let app = routes::register_routes(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     tracing::info!("listening on {}", addr);
