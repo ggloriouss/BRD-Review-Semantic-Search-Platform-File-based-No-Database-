@@ -48,14 +48,14 @@ A file-backed semantic review search system that ingests unlimited user reviews 
     ```
 
 3. Access the Application:
-    - Frontend: http://localhost:3000
+    - Frontend: http://localhost:80
     - Backend API: http://localhost:8000
 
 ## Usage
 
 ### Insert Reviews
 
-- Navigate to http://localhost:3000
+- Navigate to http://localhost:80
 - Fill in the review details:
     - Review (Required)
     - Rating (Required, integer 0-5)
