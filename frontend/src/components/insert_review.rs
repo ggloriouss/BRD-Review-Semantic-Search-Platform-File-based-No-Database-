@@ -1,61 +1,67 @@
 use leptos::*;
-use leptos::ev::SubmitEvent;
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize)]
-struct InsertPayload {
-    title: Option<String>,
-    body: String,
-    rating: Option<u8>,
-}
+// use leptos::ev::SubmitEvent;
+use crate::api::{create_review, create_bulk, ReviewInput};
 
 #[component]
 pub fn InsertReview() -> impl IntoView {
-    let title = create_rw_signal(String::new());
-    let body = create_rw_signal(String::new());
-    let rating = create_rw_signal(None::<u8>);
-    let status = create_rw_signal(String::new());
+    let review = create_rw_signal(String::new());
+    let rating = create_rw_signal(String::new());
+    let bulk_text = create_rw_signal(String::new());
+    let message = create_rw_signal(String::new());
 
-    let on_submit = move |ev: SubmitEvent| {
-        ev.prevent_default();
-        let t = title.get();
-        let b = body.get();
-        let r = rating.get();
-        let payload = InsertPayload { 
-            title: if t.is_empty() { None } else { Some(t) }, 
-            body: b.clone(), 
-            rating: r 
-        };
-
+    let on_submit = move |_| {
+        let review_v = review.get();
+        let rating_v = rating.get();
+        let message = message.clone();
         spawn_local(async move {
-            let res: Result<serde_json::Value, String> = crate::api::post_json("/reviews", &payload).await;
-            match res {
-                Ok(v) => status.set(format!("OK: {:?}", v)),
-                Err(e) => status.set(format!("ERR: {}", e)),
+            let rating_parsed = rating_v.trim().parse::<i32>().unwrap_or(0);
+            let input = ReviewInput {
+                review: review_v,
+                rating: rating_parsed,
+            };
+            match create_review(&input).await {
+                Ok(r) => message.set(format!("Inserted review id={} vector_id={}", r.id, r.vector_id)),
+                Err(e) => message.set(format!("Error: {:?}", e)),
+            }
+        });
+    };
+
+    let on_bulk = move |_| {
+        let raw = bulk_text.get();
+        let message = message.clone();
+        spawn_local(async move {
+            // Expect JSON array of objects
+            let parsed: Result<Vec<ReviewInput>, _> = serde_json::from_str(&raw);
+            match parsed {
+                Ok(list) => {
+                    match create_bulk(&list).await {
+                        Ok(res) => message.set(format!("Inserted {} reviews", res.len())),
+                        Err(e) => message.set(format!("Bulk error: {:?}", e)),
+                    }
+                }
+                Err(e) => message.set(format!("Parse error: {}", e)),
             }
         });
     };
 
     view! {
-        <h2>"Upload/Insert Review"</h2>
-        <form on:submit=on_submit>
-            <input 
-                placeholder="Title (optional)" 
-                prop:value=title 
-                on:input=move |e| title.set(event_target_value(&e)) 
-            />
-            <textarea 
-                placeholder="Body" 
-                prop:value=body 
-                on:input=move |e| body.set(event_target_value(&e)) 
-            />
-            <input 
-                type="number" 
-                placeholder="Rating (1-5)" 
-                on:input=move |e| rating.set(Some(event_target_value(&e).parse().unwrap_or(0))) 
-            />
-            <button type="submit">"Upload"</button>
-        </form>
-        <p>{move || status.get()}</p>
+        <div class="insert-review">
+            <h2>"Insert Review"</h2>
+            <div>
+                <label>"Review:"</label>
+                <textarea prop:value=review on:input=move |e| review.set(event_target_value(&e)) />
+            </div>
+            <div>
+                <label>"Rating (0-5):"</label>
+                <input prop:value=rating on:input=move |e| rating.set(event_target_value(&e)) />
+            </div>
+            <button on:click=on_submit>"Submit"</button>
+
+            <h3>"Bulk Insert (JSON Array)"</h3>
+            <textarea rows=8 prop:value=bulk_text on:input=move |e| bulk_text.set(event_target_value(&e)) />
+            <button on:click=on_bulk>"Bulk Upload"</button>
+
+            <p>{ move || message.get() }</p>
+        </div>
     }
 }

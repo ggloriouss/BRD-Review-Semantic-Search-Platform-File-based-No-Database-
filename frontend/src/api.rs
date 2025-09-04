@@ -1,31 +1,96 @@
-use serde::Serialize;
-use wasm_bindgen_futures::spawn_local;
-use wasm_bindgen::JsCast;
-use web_sys::window;
+use serde::{Deserialize, Serialize};
+use wasm_bindgen::JsValue;
+use gloo_net::http::Request;
 
-const BASE_URL: &str = "http://localhost:8000";  // Host URL for browser
+const BASE_URL: &str = "http://localhost:8000";
 
-pub async fn post_json<T: Serialize, R: for<'de> serde::Deserialize<'de>>(endpoint: &str, body: &T) -> Result<R, String> {
-    let url = format!("{}{}", BASE_URL, endpoint);
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ReviewInput {
+    pub review: String,
+    pub rating: i32,
+}
 
-    let window = window().ok_or("no window")?;
-    let headers = web_sys::Headers::new().map_err(|_| "headers err")?;
-    headers.append("Content-Type", "application/json").map_err(|_| "header append err")?;
-    
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("POST");
-    opts.headers(&headers);
-    opts.body(Some(&wasm_bindgen::JsValue::from_str(&serde_json::to_string(body).map_err(|e| e.to_string())?)));
-    
-    let resp = window.fetch_with_str_and_init(&url, &opts);
-    let resp = wasm_bindgen_futures::JsFuture::from(resp).await.map_err(|e| format!("fetch err {:?}", e))?;
-    let response: web_sys::Response = resp.dyn_into().map_err(|_| "not a response")?;
-    
-    if response.ok() {
-        let text = wasm_bindgen_futures::JsFuture::from(response.text().map_err(|_| "no text")?).await.map_err(|_| "text err")?;
-        let s = text.as_string().ok_or("no string")?;
-        serde_json::from_str(&s).map_err(|e| e.to_string())
-    } else {
-        Err(format!("HTTP error: {}", response.status()))
+#[derive(Deserialize, Debug, Clone)]
+pub struct StoredReview {
+    pub id: String,
+    pub review: String,
+    pub rating: i32,
+    #[allow(dead_code)]
+    pub schema_version: String,
+    pub vector_id: usize,
+}
+
+#[derive(Serialize)]
+pub struct SearchRequest {
+    pub query: String,
+    pub top_k: Option<usize>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct SearchHit {
+    pub review: StoredReview,
+    pub score: f32,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SearchResponse {
+    pub hits: Vec<SearchHit>,
+}
+
+fn backend_url() -> String {
+    option_env!("BACKEND_URL")
+        .unwrap_or(BASE_URL)
+        .to_string()
+}
+
+pub async fn create_review(r: &ReviewInput) -> Result<StoredReview, JsValue> {
+    let res = Request::post(&format!("{}/reviews", backend_url()))
+        .header("Content-Type", "application/json")
+        .body(serde_json::to_string(r).unwrap())
+        .unwrap()
+        .send()
+        .await
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    if !res.ok() {
+        return Err(JsValue::from_str(&format!("Error: {}", res.status())));
     }
+    Ok(res
+        .json::<StoredReview>()
+        .await
+        .map_err(|e| JsValue::from_str(&e.to_string()))?)
+}
+
+pub async fn create_bulk(rs: &[ReviewInput]) -> Result<Vec<StoredReview>, JsValue> {
+    let payload = serde_json::to_string(&rs).unwrap();
+    let res = Request::post(&format!("{}/reviews/bulk", backend_url()))
+        .header("Content-Type", "application/json")
+        .body(payload)
+        .unwrap()
+        .send()
+        .await
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    if !res.ok() {
+        return Err(JsValue::from_str(&format!("Error: {}", res.status())));
+    }
+    Ok(res
+        .json::<Vec<StoredReview>>()
+        .await
+        .map_err(|e| JsValue::from_str(&e.to_string()))?)
+}
+
+pub async fn search(req: &SearchRequest) -> Result<SearchResponse, JsValue> {
+    let res = Request::post(&format!("{}/search", backend_url()))
+        .header("Content-Type", "application/json")
+        .body(serde_json::to_string(req).unwrap())
+        .unwrap()
+        .send()
+        .await
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    if !res.ok() {
+        return Err(JsValue::from_str(&format!("Error: {}", res.status())));
+    }
+    Ok(res
+        .json::<SearchResponse>()
+        .await
+        .map_err(|e| JsValue::from_str(&e.to_string()))?)
 }
