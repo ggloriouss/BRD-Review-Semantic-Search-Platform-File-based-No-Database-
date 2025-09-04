@@ -1,9 +1,19 @@
-FROM rust:latest as builder
+FROM rust:latest AS builder
 WORKDIR /app
-COPY . .
-RUN cargo build --release --bin frontend
 
-FROM nginx:alpine
-COPY --from=builder /app/target/release/frontend /usr/share/nginx/html
+# Install wasm target
+RUN rustup target add wasm32-unknown-unknown
+
+# Install trunk (for building Leptos frontend)
+RUN cargo install trunk
+
+# Copy sources
+COPY . .
+
+# Build frontend as WASM static files
+RUN trunk build --release
+
+FROM nginx:alpine AS runtime
+COPY --from=builder /app/dist /usr/share/nginx/html
 EXPOSE 3000
 CMD ["nginx", "-g", "daemon off;"]

@@ -30,12 +30,12 @@
 │   ├── src/
 │   ├── Cargo.toml
 │   ├── spfresh/               # (binding หรือ submodule)
-│   ├── data/                  # ← เก็บไฟล์ข้อมูล (append-only)
+│   ├── data/                  # ← store data (append-only)
 │   │   ├── reviews.index      # ← spfresh vector index (binary, append-only)
-│   │   └── reviews.jsonl      # ← metadata: 1 review ต่อ 1 บรรทัด (JSON Lines)
+│   │   └── reviews.jsonl      # ← metadata: 1 review per 1 line (JSON Lines)
 │   └── ...
 │
-├── docker-compose.yml         # Orchestration ทั้งระบบ (no DB)
+├── docker-compose.yml         # System Orchestration (no DB)
 │
 └── README.md
     ```
