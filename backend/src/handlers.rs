@@ -1,7 +1,15 @@
 use crate::embedder;
 use crate::storage::{append_metadata, append_vector_map, read_metadata_by_review_ids, SpFreshIndex};
 use crate::types::{BulkInsertRequest, InsertReviewRequest, InsertReviewResponse, Review, SearchRequest, SearchResult};
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::State};
+use axum::http::StatusCode;
+use axum::Json;
+use serde_json::json;
+
+pub async fn health_handler() -> (StatusCode, Json<serde_json::Value>) {
+    (StatusCode::OK, Json(json!({"status": "ok"})))
+}
+
 use chrono::Utc;
 use std::sync::Arc;
 use tracing::{debug, error, info};

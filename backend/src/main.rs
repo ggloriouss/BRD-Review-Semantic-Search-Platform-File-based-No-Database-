@@ -31,6 +31,11 @@ async fn main() -> anyhow::Result<()> {
 
     let app = routes::register_routes(state);
 
+    // Remove the health check code
+    // let backend_url = std::env::var("BACKEND_URL").unwrap_or("http://localhost:8000".to_string());
+    // let resp = reqwest::get(format!("{}/health", backend_url)).await?;
+    // tracing::info!("Health check: {:?}", resp);
+
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     tracing::info!("listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await?;
