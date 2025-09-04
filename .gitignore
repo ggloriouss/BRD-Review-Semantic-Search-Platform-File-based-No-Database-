@@ -67,8 +67,8 @@ coverage/
 .DS_Store
 
 # Ignore specific files
-Instructions.md
-Prompt.txt
+*Instructions.md
+*Prompt.txt
 
 # JetBrains IDE
 # Uncomment to ignore the entire idea folder
