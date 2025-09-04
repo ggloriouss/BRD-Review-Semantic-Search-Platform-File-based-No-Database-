@@ -1,3 +1,4 @@
+
 # BRD: Review Semantic Search Platform (File-based, No Database)
 A file-backed semantic review search system that ingests unlimited user reviews via a Leptos frontend, embeds them using fastembed-rs, and performs approximate nearest neighbor (ANN) vector search with SPFresh/SPTAG index—no external database required. All data lives in files under ``` backend\data ``` (data folder).
 
@@ -165,3 +166,4 @@ This project is licensed under the terms specified in the LICENSE file (root/LIC
 
 ---
 Created as part of the BRD Review Semantic Search Platform project. Uses file-based storage with no database dependencies.
+=======
