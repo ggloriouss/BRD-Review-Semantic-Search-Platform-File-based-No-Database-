@@ -8,8 +8,12 @@ use crate::types::{
 use axum::{extract::State, http::StatusCode, Json};
 use serde_json::json;
 use std::sync::Arc;
-use tracing::{error};
+use std::cmp::Ordering;
+use std::collections::HashMap;
+use tracing::error;
+use hyper::StatusCode;
 
+// Just a simple health check endpoint (If backend is running)
 pub async fn health_handler() -> (StatusCode, Json<serde_json::Value>) {
     (StatusCode::OK, Json(json!({"status": "ok"})))
 }
@@ -92,6 +96,12 @@ pub async fn bulk_insert_handler(
     Ok(Json(stored_all))
 }
 
+use std::cmp::Ordering;
+use std::collections::HashMap;
+use axum::{extract::State, Json};
+use hyper::StatusCode;
+use tracing::error;
+
 pub async fn search_handler(
     State(state): State<AppState>,
     Json(req): Json<SearchRequest>,
@@ -99,7 +109,11 @@ pub async fn search_handler(
     if req.query.trim().is_empty() {
         return Err((StatusCode::BAD_REQUEST, "query empty".into()));
     }
-    let top_k = req.top_k.unwrap_or(10).min(200);
+
+    // We will always return at most this many results.
+    const TOP_N: usize = 5;
+
+    // 1) Embed query
     let embedder = Embedder::get().map_err(|e| {
         error!("embedder init error: {:?}", e);
         (StatusCode::INTERNAL_SERVER_ERROR, "embedding init failed".to_string())
@@ -108,19 +122,38 @@ pub async fn search_handler(
         error!("embed query failed: {:?}", e);
         (StatusCode::INTERNAL_SERVER_ERROR, "embedding failed".to_string())
     })?;
-    let hits = state.index.search(&qvec, top_k);
+
+    // 2) ANN search — ask for at least TOP_N (you can request more for better re-ranking if desired)
+    let ann_k = req.top_k.unwrap_or(TOP_N).max(TOP_N).min(200);
+    let hits = state.index.search(&qvec, ann_k);
+
+    // If your index returns a distance where LOWER is better, convert to a similarity first:
+    // let hits: Vec<(usize, f32)> = hits.into_iter().map(|(vid, dist)| (vid, 1.0 / (1.0 + dist))).collect();
+
+    // 3) Load metadata and build lookup map
     let reviews = load_all_reviews(&state.jsonl_path).map_err(|e| {
         error!("read metadata error: {:?}", e);
         (StatusCode::INTERNAL_SERVER_ERROR, "read metadata failed".to_string())
     })?;
-    let mut out = Vec::new();
-    for (vid, score) in hits {
-        if let Some(r) = reviews.iter().find(|r| r.vector_id == vid) {
-            out.push(SearchHit {
-                review: r.clone(),
+    let by_vec: HashMap<usize, &StoredReview> =
+        reviews.iter().map(|r| (r.vector_id, r)).collect();
+
+    // 4) Join hits with metadata
+    let mut out: Vec<SearchHit> = hits
+        .into_iter()
+        .filter_map(|(vid, score)| {
+            by_vec.get(&vid).map(|r| SearchHit {
+                review: (*r).clone(),
                 score,
-            });
-        }
+            })
+        })
+        .collect();
+
+    // 5) Sort by score DESC and keep only the top 5
+    out.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal));
+    if out.len() > TOP_N {
+        out.truncate(TOP_N);
     }
+
     Ok(Json(SearchResponse { hits: out }))
 }
