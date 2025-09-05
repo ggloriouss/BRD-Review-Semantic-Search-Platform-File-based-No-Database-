@@ -2,7 +2,6 @@ services:
   backend:
     build: ./backend
     container_name: rust-backend
-    # network_mode: host
     ports:
       - "8000:8000"
     volumes:
@@ -11,9 +10,8 @@ services:
   frontend:
     build: ./frontend
     container_name: leptos-frontend
-    # network_mode: host
     ports:
-      - "80:80"
+      - "8080:8080"
     volumes:
       - ./frontend:/app
     environment:

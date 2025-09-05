@@ -76,5 +76,8 @@ backend/data/*.index
 backend/data/*.jsonl
 backend/data/TestReviews.csv
 
+# FastEmbed cache
+backend/.fastembed_cache/
+
 # Trunk build output
 frontend/dist/

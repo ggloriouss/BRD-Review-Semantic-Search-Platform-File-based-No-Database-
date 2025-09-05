@@ -1,19 +1,24 @@
 FROM rust:latest AS builder
 WORKDIR /app
 
-# Install wasm target
-RUN rustup target add wasm32-unknown-unknown
+# install trunk and wasm target
+RUN rustup target add wasm32-unknown-unknown \
+ && cargo install trunk
 
-# Install trunk (for building Leptos frontend)
-RUN cargo install trunk
-
-# Copy sources
 COPY . .
 
-# Build frontend as WASM static files
+# build static assets
 RUN trunk build --release --public-url /
 
-FROM nginx:alpine AS runtime
-COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+FROM node:18-alpine AS runtime
+WORKDIR /app
+
+# install a small static server (no SPA fallback)
+RUN npm install -g serve
+
+# copy built static files
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 8080
+# serve WITHOUT `-s` to avoid returning index.html for missing files
+CMD ["serve", "dist", "-l", "8080"]
