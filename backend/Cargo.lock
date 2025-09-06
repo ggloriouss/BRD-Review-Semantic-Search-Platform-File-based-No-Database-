@@ -203,6 +203,7 @@ dependencies = [
  "chrono",
  "fastembed",
  "futures",
+ "hyper",
  "once_cell",
  "parking_lot",
  "serde",

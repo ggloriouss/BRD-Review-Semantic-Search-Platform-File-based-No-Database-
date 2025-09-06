@@ -5,7 +5,7 @@ use crate::storage::{
 use crate::types::{
     BulkReviews, ReviewInput, SearchRequest, SearchResponse, StoredReview, SearchHit,
 };
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::State, Json};
 use serde_json::json;
 use std::sync::Arc;
 use std::cmp::Ordering;
@@ -20,7 +20,7 @@ pub async fn health_handler() -> (StatusCode, Json<serde_json::Value>) {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub index: Arc<SpFreshIndex>,
+    pub index: Arc<std::sync::RwLock<SpFreshIndex>>,
     pub jsonl_path: String,
     pub map_path: String,
 }
@@ -38,10 +38,13 @@ pub async fn insert_review_handler(
         error!("embed error: {:?}", e);
         (StatusCode::INTERNAL_SERVER_ERROR, "embedding failed".to_string())
     })?;
-    let vector_id = state.index.append_vector(&vec).map_err(|e| {
-        error!("index append error: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "index append failed".to_string())
-    })?;
+    let vector_id = {
+        let index = state.index.write().expect("index RwLock poisoned");
+        index.append_vector(&vec).map_err(|e| {
+            error!("index append error: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "index append failed".to_string())
+        })?
+    };
     let stored = StoredReview::from_input(payload, vector_id);
     append_review_line(&state.jsonl_path, &stored).map_err(|e| {
         error!("write metadata error: {:?}", e);
@@ -78,10 +81,13 @@ pub async fn bulk_insert_handler(
     }
     let mut stored_all = Vec::with_capacity(items.len());
     for (input, vec) in items.into_iter().zip(vectors.into_iter()) {
-        let vector_id = state.index.append_vector(&vec).map_err(|e| {
-            error!("index append error: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "index append failed".to_string())
-        })?;
+        let vector_id = {
+            let index = state.index.write().expect("index RwLock poisoned");
+            index.append_vector(&vec).map_err(|e| {
+                error!("index append error: {:?}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "index append failed".to_string())
+            })?
+        };
         let stored = StoredReview::from_input(input, vector_id);
         append_review_line(&state.jsonl_path, &stored).map_err(|e| {
             error!("write metadata error: {:?}", e);
@@ -95,12 +101,6 @@ pub async fn bulk_insert_handler(
     }
     Ok(Json(stored_all))
 }
-
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use axum::{extract::State, Json};
-use hyper::StatusCode;
-use tracing::error;
 
 pub async fn search_handler(
     State(state): State<AppState>,
@@ -125,7 +125,10 @@ pub async fn search_handler(
 
     // 2) ANN search — ask for at least TOP_N (you can request more for better re-ranking if desired)
     let ann_k = req.top_k.unwrap_or(TOP_N).max(TOP_N).min(200);
-    let hits = state.index.search(&qvec, ann_k);
+    let hits = {
+        let index = state.index.read().expect("index RwLock poisoned");
+        index.search(&qvec, ann_k)
+    };
 
     // If your index returns a distance where LOWER is better, convert to a similarity first:
     // let hits: Vec<(usize, f32)> = hits.into_iter().map(|(vid, dist)| (vid, 1.0 / (1.0 + dist))).collect();
