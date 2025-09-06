@@ -1,125 +1,135 @@
-use crate::types::Review;
-use anyhow::{Context, Result};
-use parking_lot::Mutex;
+use anyhow::{anyhow, Result};
+use parking_lot::RwLock;
+use serde_json::Deserializer;
 use std::fs::{File, OpenOptions};
-use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::path::Path;
-// use std::sync::Arc;
+use std::io::{BufReader, Write};
+use std::path::{Path, PathBuf};
 
-/// SpFreshIndex: wrapper (replace append/search with real binding)
+use crate::types::StoredReview;
+
 pub struct SpFreshIndex {
-    index_path: String,
-    writer_lock: Mutex<()>,
+    path: PathBuf,
+    vectors: RwLock<Vec<Vec<f32>>>,
 }
 
 impl SpFreshIndex {
-    pub fn open(path: &str) -> Result<Self> {
-        if !Path::new(path).exists() {
-            File::create(path).context("create spfresh index file")?;
+    pub fn open<P: AsRef<Path>>(p: P) -> Result<Self> {
+        let path = p.as_ref().to_path_buf();
+        if !path.exists() {
+            File::create(&path)?;
+        }
+        let mut vectors = Vec::new();
+        {
+            use std::io::Read;
+            let mut f = File::open(&path)?;
+            loop {
+                let mut len_buf = [0u8; 4];
+                if f.read_exact(&mut len_buf).is_err() {
+                    break;
+                }
+                let len = u32::from_le_bytes(len_buf) as usize;
+                let mut fb = vec![0u8; len * 4];
+                f.read_exact(&mut fb)?;
+                let mut vecf = Vec::with_capacity(len);
+                for chunk in fb.chunks_exact(4) {
+                    vecf.push(f32::from_le_bytes(chunk.try_into().unwrap()));
+                }
+                vectors.push(vecf);
+            }
         }
         Ok(Self {
-            index_path: path.to_string(),
-            writer_lock: Mutex::new(()),
+            path,
+            vectors: RwLock::new(vectors),
         })
     }
 
-    /// Append vector and return a deterministic vector id (u64).
-    /// Replace body with real spfresh append that returns actual id.
-    pub fn append_vector(&self, vector: &[f32]) -> Result<u64> {
-        let _g = self.writer_lock.lock();
-        let meta = std::fs::metadata(&self.index_path)?;
-        let id = meta.len() / 16 + 1; // simplistic pseudo-id
-        let mut f = OpenOptions::new().append(true).open(&self.index_path)?;
-        writeln!(f, "VEC_ID:{} LEN:{}", id, vector.len()).context("write index placeholder")?;
-        Ok(id as u64)
-    }
-
-    /// Search returning (vector_id, score).
-    /// Replace with real knn query.
-    pub fn search(&self, _vector: &[f32], top_k: usize) -> Result<Vec<(u64, f32)>> {
-        let mut res = Vec::new();
-        for i in 1..=top_k {
-            res.push((i as u64, 1.0 / (i as f32)));
+    pub fn append_vector(&self, vector: &[f32]) -> Result<usize> {
+        let mut file = OpenOptions::new().append(true).open(&self.path)?;
+        let len = vector.len() as u32;
+        file.write_all(&len.to_le_bytes())?;
+        for v in vector {
+            file.write_all(&v.to_le_bytes())?;
         }
-        Ok(res)
+        let mut guard = self.vectors.write();
+        guard.push(vector.to_vec());
+        Ok(guard.len() - 1)
+    }
+
+    pub fn search(&self, query: &[f32], top_k: usize) -> Vec<(usize, f32)> {
+        let guard = self.vectors.read();
+        let mut scored: Vec<(usize, f32)> = guard
+            .iter()
+            .enumerate()
+            .map(|(i, v)| (i, cosine_similarity(query, v)))
+            .collect();
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        scored.truncate(top_k);
+        scored
+    }
+
+    pub fn len(&self) -> usize {
+        self.vectors.read().len()
     }
 }
 
-/// Append review metadata (JSONL) append-only
-pub fn append_metadata(jsonl_path: &str, review: &Review) -> Result<()> {
-    let file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(jsonl_path)
-        .with_context(|| format!("open metadata file: {}", jsonl_path))?;
-    let mut writer = BufWriter::new(file);
-    let line = serde_json::to_string(&review)?;
-    writer.write_all(line.as_bytes())?;
-    writer.write_all(b"\n")?;
-    writer.flush()?;
-    Ok(())
-}
-
-/// Append vector_id -> review_id mapping (JSONL) append-only
-#[derive(serde::Serialize)]
-struct VectorMapRecord<'a> {
-    vector_id: u64,
-    review_id: &'a str,
-}
-pub fn append_vector_map(map_path: &str, vector_id: u64, review_id: &str) -> Result<()> {
-    let file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(map_path)
-        .with_context(|| format!("open vector_map file: {}", map_path))?;
-    let mut writer = BufWriter::new(file);
-    let rec = VectorMapRecord { vector_id, review_id };
-    let line = serde_json::to_string(&rec)?;
-    writer.write_all(line.as_bytes())?;
-    writer.write_all(b"\n")?;
-    writer.flush()?;
-    Ok(())
-}
-
-/// Read mapping file into Vec<(vector_id, review_id)> keeping order
-pub fn read_vector_map(map_path: &str) -> Result<Vec<(u64, String)>> {
-    if !Path::new(map_path).exists() {
-        return Ok(Vec::new());
+fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    let mut dot = 0f32;
+    let mut na = 0f32;
+    let mut nb = 0f32;
+    for (x, y) in a.iter().zip(b.iter()) {
+        dot += x * y;
+        na += x * x;
+        nb += y * y;
     }
-    let file = File::open(map_path)?;
+    if na == 0.0 || nb == 0.0 {
+        return 0.0;
+    }
+    dot / (na.sqrt() * nb.sqrt())
+}
+
+pub fn append_review_line(path: &str, review: &StoredReview) -> Result<()> {
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
+    let line = serde_json::to_string(review)? + "\n";
+    file.write_all(line.as_bytes())?;
+    Ok(())
+}
+
+pub fn load_all_reviews(path: &str) -> Result<Vec<StoredReview>> {
+    if !Path::new(path).exists() {
+        return Ok(vec![]);
+    }
+    let file = File::open(path)?;
     let reader = BufReader::new(file);
+    let stream = Deserializer::from_reader(reader).into_iter::<StoredReview>();
     let mut out = Vec::new();
-    for line in reader.lines() {
-        let l = line?;
-        if l.trim().is_empty() { continue; }
-        let v: serde_json::Value = serde_json::from_str(&l)?;
-        let vid = v["vector_id"].as_u64().ok_or_else(|| anyhow::anyhow!("invalid map"))?;
-        let rid = v["review_id"].as_str().unwrap_or_default().to_string();
-        out.push((vid, rid));
+    for item in stream {
+        out.push(item?);
     }
     Ok(out)
 }
 
-/// Read metadata by review_id quickly by streaming (naive)
-pub fn read_metadata_by_review_ids(jsonl_path: &str, review_ids: &[String]) -> Result<Vec<Review>> {
-    let mut map = std::collections::HashMap::new();
-    // early exit if file missing
-    if !Path::new(jsonl_path).exists() {
-        return Ok(Vec::new());
+pub fn append_vector_map_line(path: &str, vector_id: usize, review_id: &str) -> Result<()> {
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
+    let line =
+        serde_json::json!({"vector_id": vector_id, "review_id": review_id }).to_string() + "\n";
+    file.write_all(line.as_bytes())?;
+    Ok(())
+}
+
+pub fn verify_alignment(index: &SpFreshIndex, jsonl_path: &str) -> Result<()> {
+    let reviews = load_all_reviews(jsonl_path)?;
+    if reviews.len() != index.len() {
+        return Err(anyhow!(
+            "Mismatch: vectors={} metadata_lines={}",
+            index.len(),
+            reviews.len()
+        ));
     }
-    let file = File::open(jsonl_path)?;
-    let reader = BufReader::new(file);
-    for line in reader.lines() {
-        let l = line?;
-        if l.trim().is_empty() { continue; }
-        let r: Review = serde_json::from_str(&l)?;
-        map.insert(r.id.clone(), r);
-    }
-    let mut out = Vec::new();
-    for rid in review_ids {
-        if let Some(r) = map.get(rid) {
-            out.push(r.clone());
-        }
-    }
-    Ok(out)
+    Ok(())
 }

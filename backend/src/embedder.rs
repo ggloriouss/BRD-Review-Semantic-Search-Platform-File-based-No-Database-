@@ -1,32 +1,38 @@
 use anyhow::Result;
+use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+use once_cell::sync::Lazy;
+use parking_lot::Mutex;
+use std::sync::Arc;
 
-const EMBEDDING_DIM: usize = 256;
-const MULTIPLIER: u64 = 1099511628211;
-const INITIAL_SEED: u64 = 1469598103934665603;
-
-pub fn embed_text(text: &str) -> Result<Vec<f32>> {
-    let seed = calculate_seed(text);
-    let vector = generate_vector(seed);
-    let normalized = normalize_vector(vector);
-    Ok(normalized)
+pub struct Embedder {
+    inner: TextEmbedding,
 }
 
-fn calculate_seed(text: &str) -> u64 {
-    text.bytes().fold(INITIAL_SEED, |seed, byte| {
-        seed.wrapping_mul(MULTIPLIER).wrapping_add(byte as u64)
-    })
-}
+static EMBEDDER_SINGLETON: Lazy<Mutex<Option<Arc<Embedder>>>> =
+    Lazy::new(|| Mutex::new(None));
 
-fn generate_vector(seed: u64) -> Vec<f32> {
-    (0..EMBEDDING_DIM)
-        .map(|i| ((seed.wrapping_add(i as u64) % 1000) as f32) / 1000.0)
-        .collect()
-}
-
-fn normalize_vector(mut vector: Vec<f32>) -> Vec<f32> {
-    let norm = (vector.iter().map(|x| x * x).sum::<f32>()).sqrt();
-    if norm > 0.0 {
-        vector.iter_mut().for_each(|x| *x /= norm);
+impl Embedder {
+    pub fn get() -> Result<Arc<Embedder>> {
+        {
+            let guard = EMBEDDER_SINGLETON.lock();
+            if let Some(existing) = guard.as_ref() {
+                return Ok(existing.clone());
+            }
+        }
+        let model = TextEmbedding::try_new(InitOptions::new(
+            EmbeddingModel::AllMiniLML6V2,
+        ))?;
+        let embedder = Arc::new(Embedder { inner: model });
+        *EMBEDDER_SINGLETON.lock() = Some(embedder.clone());
+        Ok(embedder)
     }
-    vector
+
+    pub fn embed(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
+        let embeddings = self.inner.embed(texts.to_vec(), None)?;
+        Ok(embeddings)
+    }
+
+    pub fn embed_one(&self, text: &str) -> Result<Vec<f32>> {
+        Ok(self.embed(&[text.to_string()])?.remove(0))
+    }
 }

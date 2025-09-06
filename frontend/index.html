@@ -1,16 +1,24 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>BRD Review Semantic Search Platform</title>
-    <link rel="stylesheet" href="/pkg/style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BRD Review Semantic Search Platform</title>
+
+  <!-- Global styles (adjust path to your real CSS) -->
+  <link rel="stylesheet" href="./pkg/style.css" />
+
+  <!-- Favicons / fonts / theme color go here -->
+  <!-- <link rel="icon" href="/favicon.ico"> -->
+  <!-- <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> -->
+  <!-- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"> -->
+  <!-- <meta name="theme-color" content="#0f172a" /> -->
 </head>
 <body>
-    <div id="leptos"></div>  <!-- Leptos mounts here -->
-    <script type="module">
-        import init, { run_app } from '/pkg/frontend.js';  // Loads WASM
-        init().then(() => run_app());
-    </script>
+  <div id="leptos"></div>
+  <script type="module">
+    import init, { run_app } from "./pkg/frontend.js";
+    init().then(() => run_app());
+  </script>
 </body>
 </html>

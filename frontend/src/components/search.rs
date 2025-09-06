@@ -1,51 +1,53 @@
 use leptos::*;
-use leptos::ev::SubmitEvent;
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Clone)]
-struct SearchPayload {
-    query: String,
-    top_k: Option<usize>,
-}
-
-#[derive(Deserialize, Clone)]
-struct SearchResult {
-    id: String,
-    score: f32,
-    metadata: serde_json::Value,
-}
+// use leptos::ev::SubmitEvent;
+use crate::api::{search, SearchRequest, SearchHit};
 
 #[component]
 pub fn Search() -> impl IntoView {
     let query = create_rw_signal(String::new());
-    let results = create_rw_signal(vec![] as Vec<SearchResult>);
-    let status = create_rw_signal(String::new());
+    let results = create_rw_signal::<Vec<SearchHit>>(vec![]);
+    let message = create_rw_signal(String::new());
 
-    let on_search = move |ev: SubmitEvent| {
-        ev.prevent_default();
+    let on_search = move |_| {
         let q = query.get();
-        let payload = SearchPayload { query: q.clone(), top_k: Some(10) };
+        if q.trim().is_empty() {
+            message.set("Query empty".into());
+            return;
+        }
+        let results_sig = results.clone();
+        let message_sig = message.clone();
         spawn_local(async move {
-            let res: Result<Vec<SearchResult>, String> = crate::api::post_json("/search", &payload).await;
-            match res {
-                Ok(v) => {
-                    status.set("OK".to_string());
-                    results.set(v);
+            match search(&SearchRequest { query: q, top_k: Some(10) }).await {
+                Ok(resp) => {
+                    results_sig.set(resp.hits);
+                    message_sig.set(String::new());
                 }
-                Err(e) => status.set(format!("ERR: {}", e)),
+                Err(e) => message_sig.set(format!("Error: {:?}", e)),
             }
         });
     };
 
     view! {
-        <h2>"Semantic Search"</h2>
-        <form on:submit=on_search>
-            <input placeholder="Enter query" prop:value=query.get() on:input=move |e| query.set(event_target_value(&e)) />
-            <button type="submit">"Search"</button>
-        </form>
-        <p>{ move || status.get() }</p>
-        <ul>
-            { move || results.get().iter().map(|r| view! { <li>{format!("ID: {} (Score: {}) - {}", r.id, r.score, r.metadata)}</li> }).collect::<Vec<_>>() }
-        </ul>
+        <div class="search">
+            <h2>"Semantic Search"</h2>
+            <input prop:value=query on:input=move |e| query.set(event_target_value(&e)) placeholder="Enter query..." />
+            <button on:click=on_search>"Search"</button>
+            <p>{ move || message.get() }</p>
+            <ul>
+                <For
+                    each=move || results.get()
+                    key=|hit| hit.review.id.clone()
+                    children=move |hit: SearchHit| {
+                        view! {
+                            <li>
+                                <span>{format!("Score: {:.4}", hit.score)}</span>
+                                <div>{hit.review.review.clone()}</div>
+                                <small>{format!("Rating: {} | vector_id={} | id={}", hit.review.rating, hit.review.vector_id, hit.review.id)}</small>
+                            </li>
+                        }
+                    }
+                />
+            </ul>
+        </div>
     }
 }

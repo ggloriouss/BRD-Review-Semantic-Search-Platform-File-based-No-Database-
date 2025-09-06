@@ -11,8 +11,8 @@ services:
     build: ./frontend
     container_name: leptos-frontend
     ports:
-      - "3000:3000"
+      - "8080:8080"
     volumes:
       - ./frontend:/app
     environment:
-      - BACKEND_URL=http://backend:8000   # ✅ internal DNS
+      - BACKEND_URL=http://backend:8000 

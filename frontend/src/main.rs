@@ -4,26 +4,46 @@ use leptos_router::*;
 mod api;
 mod components;
 
+use components::{insert_review::InsertReview, search::Search};
+
 #[component]
-pub fn App() -> impl IntoView { // Remove cx: Scope
-    view! { // Remove cx from view!
+fn Home() -> impl IntoView {
+    view! {
+        <div>
+            <h1>"Review Semantic Search (File-based)"</h1>
+            <InsertReview />
+            <hr/>
+            <Search />
+        </div>
+    }
+}
+
+#[component]
+fn App() -> impl IntoView {
+    view! {
         <Router>
-            <nav>
-                <A href="/">"Home"</A>
-                <A href="/insert">"Index (Upload)"</A>
-                <A href="/search">"Search"</A>
-            </nav>
-            <main>
-                <Routes>
-                    <Route path="/" view=move || view! { <h1>"Welcome to Review Search"</h1> } />
-                    <Route path="/insert" view=move || view! { <components::insert_review::InsertReview /> } />
-                    <Route path="/search" view=move || view! { <components::search::Search /> } />
-                </Routes>
-            </main>
+            <Routes>
+                // Root route: IMPORTANT — in leptos_router the root is "" (not "/")
+                <Route path="" view=Home />
+
+                // Optional direct routes (handy if you link to them)
+                <Route path="/search" view=Search />
+                <Route path="/insert" view=InsertReview />
+
+                // 404 fallback (optional)
+                <Route path="/*any" view=|| view! { <p>"Not Found"</p> } />
+            </Routes>
         </Router>
     }
 }
 
-fn main() {
-    mount_to_body(|| view! { <App /> });
+#[cfg(target_arch = "wasm32")]
+pub fn main() {
+    console_error_panic_hook::set_once();
+    mount_to_body(App);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn main() {
+    // SSR/native path not used in this setup
 }

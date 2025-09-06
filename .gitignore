@@ -1,4 +1,4 @@
-# Ignore Rust build and dependency directories
+# Rust build and dependency directories
 target/
 debug/
 
@@ -39,8 +39,6 @@ dist/
 out/
 
 # Framework-specific directories
-# (add more as needed for your frameworks)
-# Example: Next.js/.next, Angular/dist, etc.
 .next/
 .angular/
 coverage/
@@ -67,9 +65,19 @@ coverage/
 .DS_Store
 
 # Ignore specific files
-Instructions.md
-Prompt.txt
+*Prompt.md
+Prompt.md
 
 # JetBrains IDE
-# Uncomment to ignore the entire idea folder
-#.idea/
+.idea/
+
+# Data files (optional: keep if you want to ignore generated data)
+backend/data/*.index
+backend/data/*.jsonl
+backend/data/TestReviews.csv
+
+# FastEmbed cache
+backend/.fastembed_cache/
+
+# Trunk build output
+frontend/dist/
