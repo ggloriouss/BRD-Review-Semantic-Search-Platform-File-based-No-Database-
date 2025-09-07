@@ -12,6 +12,9 @@ pub struct SpFreshIndex {
     vectors: RwLock<Vec<Vec<f32>>>,
 }
 
+unsafe impl Send for SpFreshIndex {}
+unsafe impl Sync for SpFreshIndex {}
+
 impl SpFreshIndex {
     pub fn open<P: AsRef<Path>>(p: P) -> Result<Self> {
         let path = p.as_ref().to_path_buf();
