@@ -10,10 +10,11 @@ use components::{insert_review::InsertReview, search::Search};
 fn Home() -> impl IntoView {
     view! {
         <div>
-            <h1>"Review Semantic Search (File-based)"</h1>
-            <InsertReview />
-            <hr/>
-            <Search />
+            <h1 class="text-center">"Review Semantic Search (File-based)"</h1>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px;">
+                <div><InsertReview /></div>
+                <div><Search /></div>
+            </div>
         </div>
     }
 }
