@@ -83,6 +83,7 @@ project-root/
 │   │   ├── reviews.index      # SPFresh vector index (binary)
 │   │   ├── reviews.jsonl      # Metadata (JSON Lines format)
 │   │   ├── vector_map.jsonl   # Vector ID to review ID mapping
+│   │   ├── TestReviews.csv    # Example CSV for bulk insert
 │   ├── src/                   # Source code
 │   │   ├── embedder.rs        # Text embedding generation
 │   │   ├── handlers.rs        # API endpoint handlers
@@ -90,6 +91,10 @@ project-root/
 │   │   ├── routes.rs          # API route definitions
 │   │   ├── storage.rs         # File I/O operations
 │   │   └── types.rs           # Data structure definitions
+│   ├── third_party/
+│   │   └── SPFresh/           # SPFresh/SPTAG vector engine source
+│   ├── Cargo.toml             # Rust dependencies
+│   ├── Dockerfile             # Backend Dockerfile
 ├── frontend/                  # Leptos frontend
 │   ├── src/
 │   │   ├── components/        # UI components
@@ -99,8 +104,11 @@ project-root/
 │   │   ├── api.rs             # Backend API client
 │   │   └── main.rs            # Frontend entry point
 │   ├── index.html             # HTML template
-│   └── Trunk.toml             # Trunk configuration
-└── docker-compose.yml         # Docker Compose configuration
+│   ├── Cargo.toml             # Frontend Rust dependencies
+│   ├── Dockerfile             # Frontend Dockerfile
+│   ├── Trunk.toml             # Trunk configuration
+├── docker-compose.yml         # Docker Compose configuration
+└── README.md                  # Project documentation
 ```
 
 ## Implementation Details

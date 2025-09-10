@@ -1,83 +1,101 @@
-# Rust build and dependency directories
+# === Rust ===
 target/
 debug/
+**/*.rlib
 
-# Node.js dependencies
+# Object & static libs (cross-lang)
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.pdb
+*.ilk
+
+# === Node / JS (in case) ===
 node_modules/
 package-lock.json
 yarn.lock
 
-# Python virtual environments and packages
+# === Python (in case) ===
 .venv/
 venv/
 __pycache__/
 *.pyc
 
-# C/C++ build and library output
-build/
-lib/
-bin/
-*.dll
-*.so
-*.dylib
-*.a
-*.lib
-
-# Go modules and vendor
+# === Go (in case) ===
 vendor/
 go.sum
 go.mod
 
-# Java dependencies
+# === Java (in case) ===
 *.jar
 *.war
 *.ear
 
-# General package directories
+# === General build outputs ===
 packages/
 dist/
 out/
 
-# Framework-specific directories
+# === Framework-specific ===
 .next/
 .angular/
 coverage/
 
-# IDE/editor files
+# === IDE / Editor ===
 .vscode/
 .idea/
 
-# Environment and config files
+# === Env & config ===
 .env
 .env.local
 .env.*
+.envrc
+.direnv/
 
-# Log files
+# === Logs ===
 *.log
+logs/
 
-# Backup and swap files
+# === OS junk ===
+.DS_Store
+Thumbs.db
+*~
 *.swp
 *.swo
-*~
 
-# Miscellaneous
-*.pdb
-.DS_Store
+# === Project-specific (SPFresh / RocksDB / C++ build) ===
+# Ignore ONLY build artifacts inside SPFresh, keep source under version control
+backend/third_party/SPFresh/build/
+backend/third_party/SPFresh/**/build/
 
-# Ignore specific files
-*Prompt.md
-Prompt.md
+# If you ever generate local libs/binaries under these (rare), keep them out
+backend/lib/
+backend/bin/
 
-# JetBrains IDE
-.idea/
-
-# Data files (optional: keep if you want to ignore generated data)
+# === Data files (generated/runtime) ===
+# Keep repo clean; mount these as a volume in Docker
 backend/data/*.index
 backend/data/*.jsonl
 backend/data/TestReviews.csv
 
-# FastEmbed cache
+# === FastEmbed cache ===
 backend/.fastembed_cache/
 
-# Trunk build output
+# === WASM artifacts (common for Rust+WASM / Trunk) ===
+**/*.wasm
+
+# === Frontend (Trunk) build output ===
 frontend/dist/
+
+# === Misc ===
+*.dSYM/
+*.tmp
+*.bak
+
+# === Ignore specific prompts (as you had) ===
+*Prompt.md
+Prompt.md

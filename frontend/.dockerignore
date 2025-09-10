@@ -1,0 +1,30 @@
+# ==== VCS ====
+.git
+.gitignore
+
+# ==== Rust (Leptos) ====
+target/
+
+# ==== Trunk / build output ====
+dist/
+pkg/
+.trunk/
+
+# ==== Node (ถ้ามี tooling ฝั่งหน้า) ====
+node_modules/
+package-lock.json
+yarn.lock
+
+# ==== WASM / maps ====
+**/*.wasm
+**/*.map
+
+# ==== Logs & cache ====
+*.log
+.cache/
+.DS_Store
+Thumbs.db
+
+# ==== Env ====
+.env
+.env.*
