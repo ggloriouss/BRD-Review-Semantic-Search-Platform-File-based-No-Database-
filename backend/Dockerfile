@@ -97,8 +97,8 @@ RUN mkdir -p /usr/local/lib /usr/local/include/SPTAG && \
 
 # ---------- คอมไพล์ Rust (ตอนนี้ build.rs + headers + libs พร้อม) ----------
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/app/target \
-    cargo build --release --locked
+    cargo build --release --locked && \
+    ls -lah target/release/
 
 ########## Runtime ##########
 FROM mirror.gcr.io/debian:bookworm-slim AS runtime
