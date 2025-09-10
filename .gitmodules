@@ -2,3 +2,6 @@
     path = backend/spfresh
     url = https://github.com/microsoft/SPTAG.git
     branch = master
+[submodule "backend/third_party/SPFresh"]
+	path = backend/third_party/SPFresh
+	url = https://github.com/SPFresh/SPFresh.git
