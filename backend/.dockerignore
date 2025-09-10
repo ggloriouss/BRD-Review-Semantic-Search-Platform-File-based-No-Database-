@@ -1,0 +1,63 @@
+# ==== VCS ====
+.git
+.gitmodules
+.gitignore
+
+# ==== Rust ====
+target/
+debug/
+**/*.rlib
+
+# (ปล่อย Cargo.toml/Cargo.lock ผ่านไปเพื่อ cache)
+.cargo/
+
+# ==== C/C++ artifacts ====
+**/*.o
+**/*.obj
+**/*.a
+**/*.lib
+**/*.so
+**/*.dylib
+**/*.dll
+**/*.pdb
+**/*.ilk
+
+# ==== WASM (จาก Rust/Trunk) ====
+**/*.wasm
+**/*.map
+
+# ==== Generic build dirs ====
+build/
+**/build/
+
+# ==== SPFresh: เก็บซอร์สไว้ แต่ ignore ไฟล์บิลด์ ====
+third_party/SPFresh/build/
+third_party/SPFresh/**/build/
+third_party/SPFresh/.git
+
+# ==== RocksDB/ชั่วคราว (ถ้ามี) ====
+rocksdb/
+tmp/
+*.tmp
+
+# ==== Data runtime (เมานท์ตอนรัน ไม่ต้องส่งเข้า build) ====
+data/
+# ถ้าต้องการเก็บโครงสร้างโฟลเดอร์ไว้ กริ่งใช้ .gitkeep และยกเว้น:
+# !data/.gitkeep
+
+# ==== Caches & Logs ====
+.fastembed_cache/
+.cache/
+logs/
+*.log
+
+# ==== Env ====
+.env
+.env.*
+
+# ==== OS junk ====
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo

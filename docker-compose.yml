@@ -1,18 +1,34 @@
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        MAKE_JOBS: 4
     container_name: rust-backend
+    environment:
+      RUST_LOG: info
+      DATA_DIR: /data
+      INDEX_FILE: /data/reviews.index
+      METADATA_FILE: /data/reviews.jsonl
+      MAP_FILE: /data/vector_map.jsonl
+      EMBED_DIM: "384"
+      SPFRESH_PARAMS: "PostingPageLimit=12"
+    volumes:
+      - ./backend/data:/data
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend/data:/app/data  
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: leptos-frontend
+    environment:
+      BACKEND_URL: http://backend:8000
     ports:
       - "8080:8080"
-    volumes:
-      - ./frontend:/app
-    environment:
-      - BACKEND_URL=http://backend:8000 
+    depends_on:
+      - backend
+    restart: unless-stopped

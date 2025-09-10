@@ -21,14 +21,11 @@ pub fn register_routes(state: AppState) -> Router<AppState> {
         .allow_methods(Any);
 
     Router::new()
-        .with_state(state)
-        // health
         .route("/health", get(health_handler))
-        // config
         .route("/config/paths", get(get_paths_handler).post(set_paths_handler))
-        // data
         .route("/reviews", post(insert_review_handler))
         .route("/reviews/bulk", post(bulk_insert_handler))
         .route("/search", post(search_handler))
         .layer(cors)
+        .with_state(state)
 }
